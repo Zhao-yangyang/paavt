@@ -1,0 +1,1252 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>成绩分析与可视化工具</title>
+    <!-- PapaParse for CSV Parsing -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+    <!-- Chart.js for Visualization -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --klein-blue: #002FA7;
+            --klein-blue-light: #e6e9f2; /* Lighter shade for backgrounds/hovers */
+            --accent-yellow: #FFC107;
+            --accent-cyan: #20c997;
+            --accent-gray: #adb5bd;
+
+            --primary-color: var(--klein-blue);
+            --primary-color-light: var(--klein-blue-light);
+            --background-color: #f0f4f8; /* Very light cool gray */
+            --card-background-color: #ffffff;
+            --text-color: #212529; /* Darker for better contrast */
+            --text-color-secondary: #6c757d; /* Bootstrap's secondary text color */
+            --border-color: #dee2e6; /* Bootstrap's border color */
+            --border-radius-medium: 8px;
+            --border-radius-large: 12px;
+            --box-shadow-soft: 0 6px 18px rgba(0, 47, 167, 0.07);
+            --box-shadow-light: 0 3px 9px rgba(0, 47, 167, 0.05);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+            margin: 0;
+            padding: 20px;
+            line-height: 1.6;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+        }
+        .container {
+            width: 100%;
+            max-width: 1100px; /* Slightly wider to accommodate layout */
+            margin: 25px auto;
+            padding: 20px;
+            background-color: transparent;
+            border-radius: 0;
+            box-shadow: none;
+        }
+        .section {
+            margin-bottom: 35px;
+            padding: 30px;
+            background-color: var(--card-background-color);
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius-large);
+            box-shadow: var(--box-shadow-soft);
+        }
+        h1, h2, h3, h4 {
+            color: var(--text-color);
+            margin-top: 0;
+            font-weight: 600; /* Bolder headings */
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 50px;
+            font-size: 2.4em;
+            color: var(--primary-color);
+        }
+        h2 {
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 18px;
+            margin-bottom: 30px;
+            font-size: 1.75em;
+            color: var(--primary-color); /* Section titles in primary color */
+        }
+        h3 {
+            font-size: 1.4em;
+            margin-bottom: 20px;
+            color: var(--text-color-secondary);
+        }
+        h4 {
+             font-size: 1.15em;
+             margin-bottom: 12px;
+             color: var(--primary-color);
+        }
+
+        label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: 500;
+            color: var(--text-color-secondary);
+        }
+
+        input[type="file"],
+        input[type="number"],
+        select,
+        button {
+            padding: 12px 18px;
+            margin-bottom: 18px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius-medium);
+            box-sizing: border-box;
+            font-size: 1em;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+            background-color: #fff;
+        }
+
+        input[type="file"] {
+            display: block;
+            width: 100%;
+            cursor: pointer;
+            background-color: #f8f9fa;
+        }
+        input[type="file"]::file-selector-button {
+            padding: 12px 18px;
+            border: none;
+            border-radius: var(--border-radius-medium);
+            background-color: var(--primary-color);
+            color: white;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            margin-right: 12px;
+        }
+        input[type="file"]::file-selector-button:hover {
+            background-color: #00227a; /* Darker Klein Blue */
+        }
+
+        input[type="number"],
+        select {
+            width: 100%;
+            max-width: 320px;
+        }
+
+        input[type="number"]:focus,
+        select:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px var(--primary-color-light);
+        }
+
+        button {
+            background-color: var(--primary-color);
+            color: white;
+            cursor: pointer;
+            font-weight: 500;
+            border: none;
+        }
+        button:hover {
+            background-color: #00227a; /* Darker Klein Blue */
+            box-shadow: var(--box-shadow-light);
+        }
+        #exportResultsBtn, #exportChartBtn {
+            background-color: var(--text-color-secondary); /* Using secondary text color for export buttons */
+        }
+        #exportResultsBtn:hover, #exportChartBtn:hover {
+            background-color: #5a6268; /* Darker shade of secondary */
+        }
+
+        /* Table Styles */
+        table {
+            width: 100%;
+            border-collapse: separate; /* Allows for border-spacing and rounded corners on table itself */
+            border-spacing: 0;
+            margin-top: 20px;
+            box-shadow: var(--box-shadow-light);
+            border-radius: var(--border-radius-medium);
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+        }
+        th, td {
+            padding: 14px 18px;
+            border-bottom: 1px solid var(--border-color);
+            text-align: left;
+            font-size: 0.95em;
+        }
+        th {
+            background-color: var(--primary-color-light); /* Light Klein Blue for headers */
+            font-weight: 600;
+            color: var(--primary-color);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 2px solid var(--primary-color);
+        }
+        tbody tr:nth-child(even) {
+            background-color: #f8f9fa; /* Lighter than body bg for subtle striping */
+        }
+        tbody tr:hover {
+            background-color: #e9ecef; /* Slightly darker hover */
+        }
+        tbody tr td:first-child {
+           /* Optional: specific styling for first cell e.g. font-weight:500 */
+        }
+        td:last-child, th:last-child {
+             /* border-right: none; */
+        }
+        td:first-child, th:first-child {
+            /* border-left: none; */
+        }
+
+        #dataPreviewTableContainer table th {
+            background-color: #e9ecef; /* Different header for preview table */
+            color: var(--text-color-secondary);
+            border-bottom: 1px solid var(--border-color);
+        }
+        #dataPreviewTableContainer table tbody tr:nth-child(even) {
+            background-color: var(--card-background-color);
+        }
+        #dataPreviewTableContainer table tbody tr:hover {
+            background-color: var(--primary-color-light);
+        }
+
+
+        #dataPreviewTableContainer,
+        #subjectStatsTableContainer,
+        #studentRankingsTableContainer,
+        #scoreDistributionTableContainer {
+            margin-top: 10px;
+            padding: 0;
+            border: none;
+            min-height: auto; 
+            background-color: transparent;
+        }
+        #chartContainer {
+            width: 100%;
+            min-height: 380px; /* Slightly increased min-height */
+            position: relative;
+            margin-top: 25px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius-medium);
+            background-color: var(--card-background-color);
+            padding: 20px;
+            box-shadow: var(--box-shadow-light);
+            overflow: hidden;
+            box-sizing: border-box; /* Ensure padding and border are included in the element's total width and height */
+        }
+        #analysisChart {
+            display: block;
+            box-sizing: border-box;
+            max-width: 100%; /* Ensure canvas does not overflow its container */
+        }
+        .upload-hint {
+            font-size: 0.9em;
+            color: var(--text-color-secondary);
+            margin-top: -10px;
+            margin-bottom: 20px;
+        }
+        #settings-section div {
+            margin-bottom: 20px;
+        }
+
+        /* New Layout Styles */
+        #analysis-content-wrapper {
+            display: none; /* Initially hidden, shown by JS */
+            flex-direction: column; /* stacks columns-container and results-section */
+            gap: 35px; /* Space between the two-column row and the full-width results section */
+        }
+
+        .columns-container {
+            display: flex;
+            flex-direction: row;
+            gap: 30px; /* Space between left and right columns */
+            align-items: flex-start; /* Align items to the top */
+        }
+
+        .left-column {
+            flex: 1; /* Takes 1 part of the space */
+            display: flex;
+            flex-direction: column;
+            gap: 30px; /* Space between sections in the left column */
+        }
+
+        .right-column {
+            flex: 2; /* Takes 2 parts of the space, making it wider */
+            display: flex;
+            flex-direction: column;
+            gap: 30px; /* If multiple sections were here */
+        }
+
+        /* Ensure sections take full width within their column parents */
+        .left-column .section,
+        .right-column .section {
+            width: 100%;
+            box-sizing: border-box; /* Include padding and border in the element's total width and height */
+            margin-bottom: 0; /* Remove bottom margin if gap is handled by flex parent */
+        }
+
+        /* Make data preview table scrollable */
+        #dataPreviewTableContainer {
+            max-height: 300px; /* Adjust as needed */
+            overflow-y: auto;
+            margin-top: 10px; /* Retain some top margin if needed */
+        }
+
+        /* Score Distribution Grid Layout */
+        #scoreDistributionTableContainer {
+            /* This div is now just a direct container for the grid */
+        }
+        .score-distribution-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px; /* Space between items/cards */
+            justify-content: flex-start;
+        }
+        .score-distribution-item {
+            flex: 1 1 calc(33.333% - 14px); /* Aim for 3 items per row, 14px is approx (gap * (cols-1) / cols) */
+            min-width: 280px; /* Minimum width of an item */
+            background-color: var(--card-background-color);
+            padding: 20px;
+            border-radius: var(--border-radius-medium);
+            border: 1px solid var(--border-color);
+            box-shadow: var(--box-shadow-light);
+            display: flex;
+            flex-direction: column;
+        }
+        .score-distribution-item h4 {
+            margin-top: 0;
+            margin-bottom: 15px;
+            font-size: 1.1em; /* Slightly adjusted title size for items */
+            color: var(--primary-color);
+            font-weight: 500;
+        }
+        .score-distribution-item table {
+            width: 100%;
+            margin-top: 0; /* Table directly under its h4 title */
+            box-shadow: none; /* Remove individual table shadow as item has shadow */
+            border: none; /* Remove individual table border as item has border */
+            /* Table cells will inherit global th, td styles for padding etc. */
+        }
+        .score-distribution-item table th {
+             background-color: var(--primary-color-light);
+             color: var(--primary-color);
+             font-weight: 500; /* Slightly less prominent header */
+        }
+        .score-distribution-item table td {
+            font-size: 0.9em; /* Slightly smaller text in these tables */
+        }
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 1. 数据上传区 -->
+        <div class="section" id="upload-section">
+            <h2>1. 上传成绩文件 (CSV格式)</h2>
+            <input type="file" id="csvFile" accept=".csv">
+            <p class="upload-hint">请上传CSV文件。文件应包含表头，例如："姓名", "科目1", "科目2", ... (第一行为表头，后续为学生数据)</p>
+        </div>
+
+        <div id="analysis-content-wrapper">
+            <div class="columns-container">
+                <div class="left-column">
+                    <div class="section" id="settings-section">
+                        <h2>3. 分析设置</h2>
+                        <div>
+                            <label for="passScore">及格分数线:</label>
+                            <input type="number" id="passScore" value="60" min="0" max="100">
+                        </div>
+                        <div>
+                            <label for="excellentScore">优秀分数线:</label>
+                            <input type="number" id="excellentScore" value="85" min="0" max="100">
+                        </div>
+                    </div>
+                    <div class="section" id="preview-section">
+                        <h2>2. 数据预览 (前10条)</h2>
+                        <div id="dataPreviewTableContainer"></div>
+                    </div>
+                </div>
+                <div class="right-column">
+                    <div class="section" id="visualization-section">
+                        <h2>5. 可视化图表</h2>
+                        <div>
+                            <label for="chartTypeSelect">选择图表类型:</label>
+                            <select id="chartTypeSelect">
+                                <!-- Options populated by JS -->
+                            </select>
+                        </div>
+                        <div id="chartContainer">
+                            <canvas id="analysisChart"></canvas>
+                        </div>
+                        <button id="exportChartBtn" style="margin-top: 10px;">导出图表 (PNG)</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section" id="results-section">
+                <h2>4. 分析结果</h2>
+                <div id="statsSummaries">
+                    <h3>统计概要</h3>
+                    <!-- e.g. Total students, number of subjects -->
+                </div>
+                <div id="subjectStatsTableContainer">
+                    <h3>各科统计</h3>
+                    <!-- Table for per-subject stats -->
+                </div>
+                <div id="studentRankingsTableContainer">
+                    <h3>学生排名</h3>
+                    <!-- Table for student rankings -->
+                </div>
+                <h3>分数段分布</h3>
+                <div id="scoreDistributionTableContainer">
+                    <!-- JS will populate this with a grid of tables -->
+                </div>
+                <button id="exportResultsBtn" style="margin-top: 15px;">导出分析结果 (CSV)</button>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        console.log("SCRIPT VERSION: V7.2 - TOTAL SCORE PIE CHART THRESHOLDS"); // Updated Version
+        let parsedData = []; // To store the parsed CSV data
+        let analysisResults = {}; // To store the results of the analysis
+
+        // Example: Basic check to ensure libraries are loaded
+        if (typeof Papa !== 'undefined') {
+            console.log("PapaParse loaded successfully.");
+        } else {
+            console.error("PapaParse failed to load.");
+        }
+
+        if (typeof Chart !== 'undefined') {
+            console.log("Chart.js loaded successfully.");
+        } else {
+            console.error("Chart.js failed to load.");
+        }
+
+        const csvFileInput = document.getElementById('csvFile');
+        const dataPreviewTableContainer = document.getElementById('dataPreviewTableContainer');
+        const previewSection = document.getElementById('preview-section');
+        const settingsSection = document.getElementById('settings-section');
+        const resultsSection = document.getElementById('results-section');
+        const visualizationSection = document.getElementById('visualization-section');
+        const subjectStatsTableContainer = document.getElementById('subjectStatsTableContainer');
+        const studentRankingsTableContainer = document.getElementById('studentRankingsTableContainer');
+        const scoreDistributionTableContainer = document.getElementById('scoreDistributionTableContainer');
+        const passScoreInput = document.getElementById('passScore');
+        const excellentScoreInput = document.getElementById('excellentScore');
+        const chartTypeSelect = document.getElementById('chartTypeSelect');
+        const analysisChartCanvas = document.getElementById('analysisChart');
+        const exportResultsBtn = document.getElementById('exportResultsBtn');
+        const exportChartBtn = document.getElementById('exportChartBtn');
+        let currentChartInstance = null;
+
+        csvFileInput.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                Papa.parse(file, {
+                    header: true, // Assumes first row is header
+                    skipEmptyLines: true,
+                    dynamicTyping: true, // Automatically convert numbers and booleans
+                    complete: function(results) {
+                        console.log("Parsing complete:", results);
+                        if (results.errors.length > 0) {
+                            console.error("Errors during parsing:", results.errors);
+                            alert("文件解析时发生错误，请检查文件格式或内容。错误详情请查看控制台。");
+                            // Clear previous preview if any
+                            dataPreviewTableContainer.innerHTML = '<p style="color: red;">文件解析失败！</p>';
+                            parsedData = [];
+                            hideSections();
+                            clearResultDisplays(); // Clear results on error
+                            return;
+                        }
+                        parsedData = results.data;
+                        if (parsedData.length === 0) {
+                            alert("CSV文件为空或无法解析出有效数据。");
+                            dataPreviewTableContainer.innerHTML = '<p style="color: orange;">文件为空或无有效数据。</p>';
+                            hideSections();
+                            clearResultDisplays(); // Clear results if file is removed
+                            return;
+                        }
+                        displayPreview(parsedData);
+                        showSections();
+                        performAnalysis(); // Trigger analysis after parsing
+                        displayResults(); // Display the results after analysis
+                    },
+                    error: function(error, file) {
+                        console.error("Error parsing CSV:", error, file);
+                        alert("无法解析CSV文件: " + error.message);
+                        dataPreviewTableContainer.innerHTML = '<p style="color: red;">文件解析失败！</p>';
+                        parsedData = [];
+                        hideSections();
+                        clearResultDisplays(); // Clear results on error
+                    }
+                });
+            } else {
+                // No file selected, or selection cleared
+                dataPreviewTableContainer.innerHTML = '';
+                parsedData = [];
+                hideSections();
+                clearResultDisplays(); // Clear results if file is removed
+            }
+        });
+
+        function displayPreview(data) {
+            dataPreviewTableContainer.innerHTML = ''; // Clear previous preview
+            if (!data || data.length === 0) {
+                dataPreviewTableContainer.innerHTML = '<p>没有数据可供预览。</p>';
+                return;
+            }
+
+            const table = document.createElement('table');
+            table.style.width = '100%';
+            table.style.borderCollapse = 'collapse';
+
+            // Create header row
+            const header = table.createTHead();
+            const headerRow = header.insertRow();
+            const headers = Object.keys(data[0]);
+            headers.forEach(text => {
+                const th = document.createElement('th');
+                th.textContent = text;
+                headerRow.appendChild(th);
+            });
+
+            // Create body rows (max 10 rows for preview)
+            const body = table.createTBody();
+            const previewRowCount = Math.min(data.length, 10);
+            for (let i = 0; i < previewRowCount; i++) {
+                const row = body.insertRow();
+                headers.forEach(headerText => {
+                    const cell = row.insertCell();
+                    cell.textContent = data[i][headerText] !== null && data[i][headerText] !== undefined ? data[i][headerText] : '';
+                });
+            }
+            dataPreviewTableContainer.appendChild(table);
+        }
+
+        function showSections() {
+            // previewSection.style.display = 'block';
+            // settingsSection.style.display = 'block';
+            // resultsSection.style.display = 'block';
+            // visualizationSection.style.display = 'block';
+            document.getElementById('analysis-content-wrapper').style.display = 'flex'; // Use flex for column layout
+            // Ensure individual sections are also visible if they were previously display:none
+            previewSection.style.display = 'block';
+            settingsSection.style.display = 'block';
+            resultsSection.style.display = 'block';
+            visualizationSection.style.display = 'block';
+        }
+
+        function hideSections() {
+            // previewSection.style.display = 'none';
+            // settingsSection.style.display = 'none';
+            // resultsSection.style.display = 'none';
+            // visualizationSection.style.display = 'none';
+            document.getElementById('analysis-content-wrapper').style.display = 'none';
+        }
+
+        function clearResultDisplays() {
+            subjectStatsTableContainer.innerHTML = '';
+            studentRankingsTableContainer.innerHTML = '';
+            scoreDistributionTableContainer.innerHTML = '';
+        }
+
+        // Core Analysis Functions (Step 2.2 & 3.1)
+        function getSubjectColumns(headers) {
+            const typicalIdColumns = ['姓名', '学号', 'name', 'student id', 'id']; // Case-insensitive check later
+            return headers.filter(header => 
+                !typicalIdColumns.some(idCol => idCol.toLowerCase() === header.toLowerCase()) && header.trim() !== ''
+            );
+        }
+
+        function calculateMedian(numbers) {
+            if (!numbers || numbers.length === 0) return null;
+            const cleanNumbers = numbers.filter(n => typeof n === 'number' && !isNaN(n));
+            if (cleanNumbers.length === 0) return null;
+            const sorted = [...cleanNumbers].sort((a, b) => a - b);
+            const middle = Math.floor(sorted.length / 2);
+            if (sorted.length % 2 === 0) {
+                return (sorted[middle - 1] + sorted[middle]) / 2;
+            }
+            return sorted[middle];
+        }
+
+        function performAnalysis() {
+            console.log("[performAnalysis V7.1] ENTERED");
+            if (!parsedData || parsedData.length === 0) {
+                console.warn("[performAnalysis V7.1] No data for analysis, exiting.");
+                analysisResults = {};
+                return;
+            }
+            console.log("[performAnalysis V7.1] Data available, proceeding.");
+
+            const headers = Object.keys(parsedData[0]);
+            const subjectColumns = getSubjectColumns(headers);
+            const studentIdentifierColumn = headers.find(h => ['姓名', '学号', 'name'].some(id => id.toLowerCase() === h.toLowerCase())) || headers[0];
+
+            let studentData = JSON.parse(JSON.stringify(parsedData)); // Deep copy
+            const passScore = parseInt(passScoreInput.value, 10);
+            const excellentScore = parseInt(excellentScoreInput.value, 10);
+
+            // 1. Calculate total and average score for each student
+            studentData.forEach(student => {
+                let totalScore = 0;
+                let validSubjectsCount = 0;
+                subjectColumns.forEach(subject => {
+                    const score = parseFloat(student[subject]);
+                    if (!isNaN(score)) {
+                        totalScore += score;
+                        validSubjectsCount++;
+                    } else {
+                        student[subject] = null;
+                    }
+                });
+                student.totalScore = totalScore;
+                student.averageScore = validSubjectsCount > 0 ? parseFloat((totalScore / validSubjectsCount).toFixed(2)) : 0;
+            });
+
+            // 2. Calculate student rankings based on total score
+            studentData.sort((a, b) => b.totalScore - a.totalScore);
+            studentData.forEach((student, index) => {
+                student.rank = index + 1;
+                if (index > 0 && student.totalScore === studentData[index - 1].totalScore) {
+                    student.rank = studentData[index - 1].rank;
+                }
+            });
+
+            // 3. Calculate stats for each subject
+            let subjectStats = {};
+            subjectColumns.forEach(subject => {
+                const scores = studentData.map(s => s[subject]).filter(score => typeof score === 'number' && !isNaN(score));
+                if (scores.length > 0) {
+                    const sum = scores.reduce((acc, val) => acc + val, 0);
+                    const passCount = scores.filter(s => s >= passScore).length;
+                    const excellentCount = scores.filter(s => s >= excellentScore).length;
+                    subjectStats[subject] = {
+                        average: parseFloat((sum / scores.length).toFixed(2)),
+                        max: Math.max(...scores),
+                        min: Math.min(...scores),
+                        median: calculateMedian(scores),
+                        passCount: passCount,
+                        passRate: parseFloat(((passCount / scores.length) * 100).toFixed(2)),
+                        excellentCount: excellentCount,
+                        excellentRate: parseFloat(((excellentCount / scores.length) * 100).toFixed(2))
+                    };
+                } else {
+                    subjectStats[subject] = {
+                        average: null, max: null, min: null, median: null,
+                        passCount: 0, passRate: 0, excellentCount: 0, excellentRate: 0
+                    };
+                }
+            });
+
+            // 4. Calculate score distribution for each subject and total score
+            const scoreDistribution = {};
+            const allSubjectsAndTotal = [...subjectColumns, 'totalScore'];
+            console.log("[performAnalysis V7.1] Keys for score distribution:", allSubjectsAndTotal);
+
+            const getSubjectSegments = () => [ // Renamed for clarity
+                { label: '90-100', min: 90, max: 100, count: 0 },
+                { label: '80-89', min: 80, max: 89.99, count: 0 },
+                { label: '70-79', min: 70, max: 79.99, count: 0 },
+                { label: '60-69', min: 60, max: 69.99, count: 0 },
+                { label: '<60', min: -Infinity, max: 59.99, count: 0 },
+            ];
+
+            // Define segments specifically for totalScore (assuming max 500 for 5 subjects)
+            // This can be made more dynamic later if needed based on subjectColumns.length
+            const getTotalScoreSegments = () => {
+                const numSubjects = subjectColumns.length > 0 ? subjectColumns.length : 5; // Default to 5 if no subjects somehow
+                const maxTotalScore = numSubjects * 100;
+                return [
+                    { label: `${(maxTotalScore * 0.9).toFixed(0)}-${maxTotalScore}`, min: maxTotalScore * 0.9, max: maxTotalScore, count: 0 },
+                    { label: `${(maxTotalScore * 0.8).toFixed(0)}-${(maxTotalScore * 0.9 - 0.01).toFixed(0)}`, min: maxTotalScore * 0.8, max: maxTotalScore * 0.9 - 0.01, count: 0 },
+                    { label: `${(maxTotalScore * 0.7).toFixed(0)}-${(maxTotalScore * 0.8 - 0.01).toFixed(0)}`, min: maxTotalScore * 0.7, max: maxTotalScore * 0.8 - 0.01, count: 0 },
+                    { label: `${(maxTotalScore * 0.6).toFixed(0)}-${(maxTotalScore * 0.7 - 0.01).toFixed(0)}`, min: maxTotalScore * 0.6, max: maxTotalScore * 0.7 - 0.01, count: 0 },
+                    { label: `<${(maxTotalScore * 0.6).toFixed(0)}`, min: -Infinity, max: maxTotalScore * 0.6 - 0.01, count: 0 },
+                ];
+            };
+
+            allSubjectsAndTotal.forEach(key => {
+                let currentKeySegments;
+                if (key === 'totalScore') {
+                    currentKeySegments = getTotalScoreSegments();
+                } else {
+                    currentKeySegments = getSubjectSegments();
+                }
+                // Log the actual segments being used, especially for totalScore
+                console.log(`[performAnalysis V7.1] --- Processing key: "${key}" --- Initial Segments:`, JSON.stringify(currentKeySegments));
+
+                studentData.forEach((student, studentIndex) => {
+                    const rawScore = student[key];
+                    const numericScore = parseFloat(rawScore);
+
+                    if (studentIndex < 2) { 
+                        console.log(`[performAnalysis V7.1] Key: "${key}", Student[${studentIndex}] (${student[studentIdentifierColumn] || 'N/A'}) raw: '${rawScore}', parsed: ${numericScore}`);
+                    }
+
+                    if (typeof numericScore === 'number' && !isNaN(numericScore)) {
+                        for (let i = 0; i < currentKeySegments.length; i++) {
+                            const segment = currentKeySegments[i];
+                            if (numericScore >= segment.min && numericScore <= segment.max) {
+                                const oldCount = segment.count;
+                                segment.count++;
+                                if (studentIndex < 2) {
+                                    console.log(`[performAnalysis V7.1] Key: "${key}", Student[${studentIndex}] score ${numericScore} in "${segment.label}". Old: ${oldCount}, New: ${segment.count}`);
+                                }
+                                break; 
+                            }
+                        }
+                    } else {
+                        if (studentIndex < 2) {
+                            console.log(`[performAnalysis V7.1] Key: "${key}", Student[${studentIndex}] score '${rawScore}' (parsed: ${numericScore}) invalid, NOT counted.`);
+                        }
+                    }
+                });
+
+                const finalCountsForKey = currentKeySegments.map(s => s.count);
+                console.log(`[performAnalysis V7.1] FINISHED KEY "${key}". Final Segment Counts:`, JSON.stringify(finalCountsForKey));
+                
+                scoreDistribution[key] = currentKeySegments.map(s => ({ 
+                    label: s.label, 
+                    count: s.count, 
+                    percentage: studentData.length > 0 ? parseFloat(((s.count / studentData.length) * 100).toFixed(2)) : 0 
+                }));
+            });
+
+            analysisResults = {
+                studentIdentifierColumn: studentIdentifierColumn,
+                subjectColumns: subjectColumns,
+                students: studentData,
+                subjects: subjectStats,
+                scoreDistribution: scoreDistribution
+            };
+
+            console.log("[performAnalysis V7.1] Final analysisResults.scoreDistribution structure:", JSON.stringify(analysisResults.scoreDistribution));
+            console.log("[performAnalysis V7.1] Analysis complete.");
+        }
+
+        // Functions to display results (Step 2.3)
+        function displayResults() {
+            clearResultDisplays();      // Clear tables
+            populateChartTypeSelect();  // Always try to populate dropdown
+            updateChart();              // Always try to update chart/clear it
+
+            if (!analysisResults || Object.keys(analysisResults).length === 0 || !analysisResults.students || analysisResults.students.length === 0) {
+                console.warn("No valid analysis results to display in tables.");
+                subjectStatsTableContainer.innerHTML = '<p>没有科目统计数据可显示。</p>';
+                studentRankingsTableContainer.innerHTML = '<p>没有学生排名数据可显示。</p>';
+                scoreDistributionTableContainer.innerHTML = '<p>没有分数段分布数据可显示。</p>';
+                return; 
+            }
+
+            // If we reach here, analysisResults is valid and has data for tables.
+            displaySubjectStats(analysisResults);
+            displayStudentRankings(analysisResults);
+            displayScoreDistribution(analysisResults);
+        }
+
+        function displaySubjectStats(results) {
+            subjectStatsTableContainer.innerHTML = ''; // Clear previous
+            const subjects = results.subjects;
+            if (!subjects || Object.keys(subjects).length === 0) {
+                subjectStatsTableContainer.innerHTML = '<p>没有科目统计数据。</p>';
+                return;
+            }
+
+            const table = document.createElement('table');
+            table.style.width = '100%';
+            table.style.borderCollapse = 'collapse';
+            table.style.marginTop = '10px';
+
+            // Header
+            const thead = table.createTHead();
+            const headerRow = thead.insertRow();
+            const headers = ['科目', '平均分', '最高分', '最低分', '中位数', '及格人数', '及格率 (%)', '优秀人数', '优秀率 (%)'];
+            headers.forEach(text => {
+                const th = document.createElement('th');
+                th.textContent = text;
+                headerRow.appendChild(th);
+            });
+
+            // Body
+            const tbody = table.createTBody();
+            Object.keys(subjects).forEach(subjectName => {
+                const stats = subjects[subjectName];
+                const row = tbody.insertRow();
+                const cells = [
+                    subjectName,
+                    stats.average !== null ? stats.average : 'N/A',
+                    stats.max !== null ? stats.max : 'N/A',
+                    stats.min !== null ? stats.min : 'N/A',
+                    stats.median !== null ? stats.median : 'N/A',
+                    stats.passCount,
+                    stats.passRate,
+                    stats.excellentCount,
+                    stats.excellentRate
+                ];
+                cells.forEach(cellData => {
+                    const cell = row.insertCell();
+                    cell.textContent = cellData;
+                });
+            });
+
+            subjectStatsTableContainer.appendChild(table);
+        }
+
+        function displayStudentRankings(results) {
+            studentRankingsTableContainer.innerHTML = ''; // Clear previous
+            const students = results.students;
+            const subjectColumns = results.subjectColumns;
+            const studentIdCol = results.studentIdentifierColumn;
+
+            if (!students || students.length === 0) {
+                studentRankingsTableContainer.innerHTML = '<p>没有学生排名数据。</p>';
+                return;
+            }
+
+            const table = document.createElement('table');
+            table.style.width = '100%';
+            table.style.borderCollapse = 'collapse';
+            table.style.marginTop = '10px';
+
+            // Header
+            const thead = table.createTHead();
+            const headerRow = thead.insertRow();
+            const headers = [studentIdCol, ...subjectColumns, '总分', '平均分', '排名'];
+            headers.forEach(text => {
+                const th = document.createElement('th');
+                th.textContent = text;
+                headerRow.appendChild(th);
+            });
+
+            // Body
+            const tbody = table.createTBody();
+            students.forEach(student => {
+                const row = tbody.insertRow();
+                const cellsData = [
+                    student[studentIdCol],
+                    ...subjectColumns.map(subj => student[subj] !== null ? student[subj] : 'N/A'),
+                    student.totalScore,
+                    student.averageScore,
+                    student.rank
+                ];
+
+                cellsData.forEach(data => {
+                    const cell = row.insertCell();
+                    cell.textContent = data;
+                });
+            });
+
+            studentRankingsTableContainer.appendChild(table);
+        }
+
+        function displayScoreDistribution(results) {
+            scoreDistributionTableContainer.innerHTML = ''; // Clear previous content
+            const distributions = results.scoreDistribution;
+            const subjectsToDisplay = results.subjectColumns ? ['totalScore', ...results.subjectColumns] : ['totalScore'];
+
+            if (!distributions || Object.keys(distributions).length === 0) {
+                scoreDistributionTableContainer.innerHTML = '<p>没有分数段分布数据。</p>';
+                return;
+            }
+
+            const gridContainer = document.createElement('div');
+            gridContainer.className = 'score-distribution-grid';
+
+            subjectsToDisplay.forEach(subjectKey => {
+                const subjectDistribution = distributions[subjectKey];
+                if (!subjectDistribution || subjectDistribution.length === 0) return;
+
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'score-distribution-item';
+
+                const subjectTitle = document.createElement('h4');
+                subjectTitle.textContent = subjectKey === 'totalScore' ? '总分 - 分数段分布' : `${subjectKey} - 分数段分布`;
+                itemDiv.appendChild(subjectTitle);
+
+                const table = document.createElement('table');
+                table.style.width = '100%'; 
+
+                const thead = table.createTHead();
+                const headerRow = thead.insertRow();
+                ['分数段', '人数', '百分比 (%)'].forEach(text => {
+                    const th = document.createElement('th');
+                    th.textContent = text;
+                    headerRow.appendChild(th);
+                });
+
+                const tbody = table.createTBody();
+                subjectDistribution.forEach(segment => {
+                    const row = tbody.insertRow();
+                    [segment.label, segment.count, segment.percentage].forEach(data => {
+                        const cell = row.insertCell();
+                        cell.textContent = data;
+                    });
+                });
+                itemDiv.appendChild(table);
+                gridContainer.appendChild(itemDiv);
+            });
+            scoreDistributionTableContainer.appendChild(gridContainer);
+        }
+
+        // Event listeners for settings change (Step 3.1)
+        passScoreInput.addEventListener('change', () => {
+            if (parsedData.length > 0) {
+                performAnalysis();
+                displayResults();
+            }
+        });
+
+        excellentScoreInput.addEventListener('change', () => {
+            if (parsedData.length > 0) {
+                performAnalysis();
+                displayResults();
+            }
+        });
+
+        chartTypeSelect.addEventListener('change', () => {
+            if (parsedData.length > 0) {
+                updateChart();
+            }
+        });
+
+        function populateChartTypeSelect() {
+            const currentValue = chartTypeSelect.value;
+            chartTypeSelect.innerHTML = ''; // Clear existing options
+
+            // Add default options for total score
+            chartTypeSelect.add(new Option("分数分布直方图 (总分)", "histogram_totalScore"));
+            chartTypeSelect.add(new Option("成绩等级饼图 (总分)", "pie_totalScore"));
+
+            if (analysisResults && analysisResults.subjectColumns) {
+                analysisResults.subjectColumns.forEach(subject => {
+                    chartTypeSelect.add(new Option(`${subject} - 分数分布直方图`, `histogram_${subject}`));
+                    chartTypeSelect.add(new Option(`${subject} - 成绩等级饼图`, `pie_${subject}`));
+                });
+            }
+            // Try to restore previous selection
+            if (Array.from(chartTypeSelect.options).some(opt => opt.value === currentValue)) {
+                chartTypeSelect.value = currentValue;
+            } else if (chartTypeSelect.options.length > 0) {
+                 chartTypeSelect.value = chartTypeSelect.options[0].value; // Default to first if previous not found
+            }
+        }
+
+        function prepareScoreDistributionData(dataKey) {
+            if (!analysisResults || !analysisResults.scoreDistribution || !analysisResults.scoreDistribution[dataKey]) {
+                console.warn(`[prepareScoreDistributionData V7.1] No score distribution data for key: ${dataKey}`);
+                return { labels: [], datasets: [] };
+            }
+            const distribution = analysisResults.scoreDistribution[dataKey];
+            
+            if (!Array.isArray(distribution) || typeof distribution.map !== 'function') {
+                console.error(`[prepareScoreDistributionData V7.1] Invalid distribution data for key: ${dataKey}`, distribution);
+                return { labels: [], datasets: [] };
+            }
+
+            const labels = distribution.map(s => s.label);
+            const counts = distribution.map(s => s.count);
+
+            console.log(`[prepareScoreDistributionData V7.1] For key "${dataKey}" - Labels:`, labels, "Counts:", counts);
+
+            return {
+                labels: labels,
+                datasets: [{
+                    label: '学生人数',
+                    data: counts,
+                    backgroundColor: 'rgba(0, 47, 167, 0.7)', // Klein Blue with alpha
+                    borderColor: '#002FA7',
+                    borderWidth: 1,
+                    borderRadius: 4, // Rounded bars
+                    barPercentage: 0.7,
+                    categoryPercentage: 0.8
+                }]
+            };
+        }
+
+        function prepareGradePieData(dataKey, passScoreInputValue, excellentScoreInputValue) {
+            if (!analysisResults || !analysisResults.students || analysisResults.students.length === 0) {
+                return { labels: [], datasets: [] };
+            }
+
+            let currentPassScore = passScoreInputValue;
+            let currentExcellentScore = excellentScoreInputValue;
+            let titleSuffix = '';
+
+            if (dataKey === 'totalScore') {
+                const numSubjects = (analysisResults.subjectColumns && analysisResults.subjectColumns.length > 0) ? analysisResults.subjectColumns.length : 5; // Default to 5 if needed
+                const maxTotalScore = numSubjects * 100; // Assuming each subject is out of 100
+                
+                currentExcellentScore = parseFloat((maxTotalScore * (excellentScoreInputValue / 100)).toFixed(2));
+                currentPassScore = parseFloat((maxTotalScore * (passScoreInputValue / 100)).toFixed(2));
+                titleSuffix = ` (满分 ${maxTotalScore})`;
+                console.log(`[prepareGradePieData V7.2] For totalScore - Max: ${maxTotalScore}, Adjusted Excellent: ${currentExcellentScore}, Adjusted Pass: ${currentPassScore}`);
+            }
+
+            const scores = analysisResults.students.map(s => s[dataKey]).filter(score => typeof score === 'number' && !isNaN(score));
+            let excellentCount = 0;
+            let passCount = 0;
+            let failCount = 0;
+
+            scores.forEach(score => {
+                if (score >= currentExcellentScore) {
+                    excellentCount++;
+                } else if (score >= currentPassScore) {
+                    passCount++;
+                } else {
+                    failCount++;
+                }
+            });
+
+            const chartTitle = (dataKey === 'totalScore' ? '总分成绩等级分布' : `${dataKey}成绩等级分布`) + titleSuffix;
+            
+            // Ensure excellentScoreForLabel is never less than passScoreForLabel in the label text
+            const excellentScoreForLabel = dataKey === 'totalScore' ? currentExcellentScore : excellentScoreInputValue;
+            const passScoreForLabel = dataKey === 'totalScore' ? currentPassScore : passScoreInputValue;
+            const excellentUpperRangeForPassLabel = parseFloat((excellentScoreForLabel - 0.01).toFixed(2));
+
+            console.log(`[prepareGradePieData V7.2] DataKey: ${dataKey}, Counts: E:${excellentCount}, P:${passCount}, F:${failCount}`);
+
+            return {
+                labels: [
+                    `优秀 (>= ${excellentScoreForLabel})`,
+                    `及格 (${passScoreForLabel}-${excellentUpperRangeForPassLabel})`,
+                    `不及格 (< ${passScoreForLabel})`
+                ],
+                datasets: [{
+                    label: chartTitle, // Use the modified chartTitle
+                    data: [excellentCount, passCount, failCount],
+                    backgroundColor: [
+                        '#002FA7',     // Klein Blue for Excellent
+                        '#20c997',     // Accent Cyan for Pass
+                        '#FFC107'      // Accent Yellow for Fail (more friendly than red)
+                    ],
+                    borderColor: '#FFFFFF', // Directly use white for segment borders
+                    borderWidth: 2,
+                    hoverOffset: 8
+                }]
+            };
+        }
+
+        function updateChart() {
+            if (currentChartInstance) {
+                currentChartInstance.destroy();
+                currentChartInstance = null;
+            }
+
+            if (!parsedData || parsedData.length === 0 || !analysisResults || Object.keys(analysisResults).length === 0) {
+                console.warn("[updateChart V7.1] No parsedData or analysisResults, clearing chart.");
+                const canvasCtx = analysisChartCanvas.getContext('2d');
+                canvasCtx.clearRect(0, 0, analysisChartCanvas.width, analysisChartCanvas.height);
+                return;
+            }
+
+            const selectedOptionValue = chartTypeSelect.value;
+            const passScore = parseInt(passScoreInput.value, 10);
+            const excellentScore = parseInt(excellentScoreInput.value, 10);
+            let chartData;
+            let chartConfig;
+            const ctx = analysisChartCanvas.getContext('2d');
+
+            const chartType = selectedOptionValue.startsWith('histogram_') ? 'bar' : 'pie';
+            const dataKey = selectedOptionValue.substring(selectedOptionValue.indexOf('_') + 1);
+            const chartTitle = chartTypeSelect.options[chartTypeSelect.selectedIndex].text;
+
+            if (chartType === 'bar') {
+                chartData = prepareScoreDistributionData(dataKey);
+                console.log('[updateChart V7.1] Bar Chart Data:', chartData);
+                chartConfig = {
+                    type: 'bar',
+                    data: chartData,
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: chartTitle,
+                                font: { size: 16, weight: '600' },
+                                color: '#333'
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: { stepSize: 1 } // Ensure y-axis shows whole numbers for counts
+                            }
+                        }
+                    }
+                };
+            } else { // pie
+                chartData = prepareGradePieData(dataKey, passScore, excellentScore);
+                console.log('[updateChart V7.1] Pie Chart Data:', chartData);
+                chartConfig = {
+                    type: 'pie',
+                    data: chartData,
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        cutout: '50%', // Makes it a Donut chart
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: chartTitle,
+                                font: { size: 16, weight: '600' },
+                                color: '#333'
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        let label = context.label || '';
+                                        if (label) {
+                                            label += ': ';
+                                        }
+                                        if (context.parsed !== null) {
+                                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                            const percentage = total > 0 ? ((context.parsed / total) * 100).toFixed(2) + '%' : '0.00%';
+                                            label += context.raw + ' (' + percentage + ')';
+                                        }
+                                        return label;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                };
+            }
+            if (chartData && chartData.labels && chartData.labels.length > 0 && chartData.datasets && chartData.datasets.length > 0 && chartData.datasets[0].data && chartData.datasets[0].data.some(d => d > 0)) {
+                console.log('[updateChart V7.1] Final Chart Config:', chartConfig);
+                currentChartInstance = new Chart(ctx, chartConfig);
+            } else {
+                 console.warn('[updateChart V7.1] No valid data to render chart. Data:', chartData);
+                 const canvasCtx = analysisChartCanvas.getContext('2d');
+                 canvasCtx.clearRect(0, 0, analysisChartCanvas.width, analysisChartCanvas.height);
+                 canvasCtx.font = "16px Arial";
+                 canvasCtx.fillStyle = "#888";
+                 canvasCtx.textAlign = "center";
+                 canvasCtx.fillText(chartTitle + " - 无数据显示", analysisChartCanvas.width / 2, analysisChartCanvas.height / 2);
+            }
+        }
+
+        // Add event listener for exporting results (Step 3.3)
+        exportResultsBtn.addEventListener('click', () => {
+            if (parsedData.length > 0 && analysisResults && Object.keys(analysisResults).length > 0) {
+                exportResultsToCSV();
+            } else {
+                alert("没有可导出的分析结果。请先上传并分析数据。");
+            }
+        });
+
+        // Helper function to trigger CSV download
+        function downloadCSV(csvContent, filename) {
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            if (link.download !== undefined) { // feature detection
+                const url = URL.createObjectURL(blob);
+                link.setAttribute("href", url);
+                link.setAttribute("download", filename);
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+            } else {
+                alert("您的浏览器不支持自动下载CSV文件。");
+            }
+        }
+
+        function exportResultsToCSV() {
+            if (!analysisResults || Object.keys(analysisResults).length === 0) {
+                console.warn("No analysis results to export.");
+                return;
+            }
+
+            let csvString = '\uFEFF'; // BOM for UTF-8 to ensure Excel compatibility with CJK characters
+
+            // Section 1: Subject Statistics
+            csvString += "科目统计\n";
+            const subjectHeaders = ['科目', '平均分', '最高分', '最低分', '中位数', '及格人数', '及格率 (%)', '优秀人数', '优秀率 (%)'];
+            csvString += subjectHeaders.join(',') + '\n';
+
+            const subjectsData = analysisResults.subjects;
+            Object.keys(subjectsData).forEach(subjectName => {
+                const stats = subjectsData[subjectName];
+                const row = [
+                    subjectName,
+                    stats.average !== null ? stats.average : '',
+                    stats.max !== null ? stats.max : '',
+                    stats.min !== null ? stats.min : '',
+                    stats.median !== null ? stats.median : '',
+                    stats.passCount,
+                    stats.passRate,
+                    stats.excellentCount,
+                    stats.excellentRate
+                ];
+                csvString += row.map(val => `"${String(val).replace(/"/g, '""')}"`).join(',') + '\n';
+            });
+
+            csvString += '\n\n'; // Add some space before the next section
+
+            // Section 2: Student Rankings and Scores
+            csvString += "学生成绩与排名\n";
+            const studentIdCol = analysisResults.studentIdentifierColumn || '学生标识';
+            const studentReportHeaders = [studentIdCol, ...analysisResults.subjectColumns, '总分', '平均分', '排名'];
+            csvString += studentReportHeaders.join(',') + '\n';
+
+            const studentsData = analysisResults.students;
+            studentsData.forEach(student => {
+                const row = [
+                    student[studentIdCol],
+                    ...analysisResults.subjectColumns.map(subj => student[subj] !== null ? student[subj] : ''),
+                    student.totalScore,
+                    student.averageScore,
+                    student.rank
+                ];
+                csvString += row.map(val => `"${String(val).replace(/"/g, '""')}"`).join(',') + '\n';
+            });
+
+            downloadCSV(csvString, 'analysis_results.csv');
+        }
+
+        // Add event listener for exporting chart (Step 3.4)
+        exportChartBtn.addEventListener('click', () => {
+            exportChartToPNG();
+        });
+
+        function exportChartToPNG() {
+            if (currentChartInstance && analysisChartCanvas) {
+                try {
+                    const url = currentChartInstance.toBase64Image('image/png');
+                    const link = document.createElement('a');
+                    link.download = 'analysis_chart.png'; // TODO: Consider a more dynamic name
+                    
+                    // Dynamically generate filename based on chart title
+                    if (currentChartInstance.options && currentChartInstance.options.plugins && currentChartInstance.options.plugins.title && currentChartInstance.options.plugins.title.text) {
+                        let title = currentChartInstance.options.plugins.title.text;
+                        // Sanitize title for filename
+                        title = title.replace(/[^a-z0-9\u4e00-\u9fa5_-]/gi, '_').replace(/_+/g, '_');
+                        link.download = `${title}.png`;
+                    }
+                    
+                    link.href = url;
+                    link.style.visibility = 'hidden';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                } catch (error) {
+                    console.error("Error exporting chart:", error);
+                    alert("导出图表时发生错误。");
+                }
+            } else {
+                alert("当前没有可导出的图表。");
+            }
+        }
+
+    </script>
+</body>
+</html> 
