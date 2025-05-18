@@ -597,13 +597,14 @@
                 let totalScore = 0;
                 let validSubjectsCount = 0;
                 subjectColumns.forEach(subject => {
-                    const score = parseFloat(student[subject]);
-                    if (!isNaN(score)) {
-                        totalScore += score;
-                        validSubjectsCount++;
-                    } else {
-                        student[subject] = null;
+                    let score = parseFloat(student[subject]); // Use let to allow reassignment
+                    if (isNaN(score)) {
+                        score = 0; // Treat missing/invalid as 0
+                        student[subject] = 0; // Update the student's data object for later use (e.g., subject stats)
                     }
+                    // Now 'score' is either the original valid score or 0
+                    totalScore += score;
+                    validSubjectsCount++; // Every subject column contributes to the count now
                 });
                 student.totalScore = totalScore;
                 student.averageScore = validSubjectsCount > 0 ? parseFloat((totalScore / validSubjectsCount).toFixed(2)) : 0;
