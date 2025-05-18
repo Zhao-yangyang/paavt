@@ -51,12 +51,12 @@
             box-shadow: none;
         }
         .section {
-            margin-bottom: 35px;
-            padding: 30px;
+            margin-bottom: 25px; /* Reduced from 35px */
+            padding: 25px; /* Reduced from 30px */
             background-color: var(--card-background-color);
             border: 1px solid var(--border-color);
             border-radius: var(--border-radius-large);
-            box-shadow: var(--box-shadow-soft);
+            box-shadow: var(--box-shadow-light); /* Softened from --box-shadow-soft */
         }
         h1, h2, h3, h4 {
             color: var(--text-color);
@@ -70,16 +70,18 @@
             color: var(--primary-color);
         }
         h2 {
-            border-bottom: 1px solid var(--border-color);
-            padding-bottom: 18px;
-            margin-bottom: 30px;
-            font-size: 1.75em;
-            color: var(--primary-color); /* Section titles in primary color */
+            /* border-bottom: 1px solid var(--border-color); */ /* Removed border */
+            border-bottom: none; /* Explicitly remove border */
+            padding-bottom: 10px; /* Reduced from 18px */
+            margin-bottom: 25px; /* Reduced from 30px */
+            font-size: 1.65em; /* Slightly reduced from 1.75em */
+            color: var(--primary-color); /* Section titles in primary color (kept) */
         }
         h3 {
             font-size: 1.4em;
-            margin-bottom: 20px;
-            color: var(--text-color-secondary);
+            margin-bottom: 15px; /* Slightly reduced */
+            color: #495057; /* Darker gray for better readability */
+            margin-top: 30px; /* Added top margin for better separation */
         }
         h4 {
              font-size: 1.15em;
@@ -230,9 +232,7 @@
             margin-top: 25px;
             border: 1px solid var(--border-color);
             border-radius: var(--border-radius-medium);
-            background-color: var(--card-background-color);
-            padding: 20px;
-            box-shadow: var(--box-shadow-light);
+            padding: 15px; /* Reduced from 20px */
             overflow: hidden;
             box-sizing: border-box; /* Ensure padding and border are included in the element's total width and height */
         }
@@ -307,11 +307,7 @@
         .score-distribution-item {
             flex: 1 1 calc(33.333% - 14px); /* Aim for 3 items per row, 14px is approx (gap * (cols-1) / cols) */
             min-width: 280px; /* Minimum width of an item */
-            background-color: var(--card-background-color);
-            padding: 20px;
-            border-radius: var(--border-radius-medium);
-            border: 1px solid var(--border-color);
-            box-shadow: var(--box-shadow-light);
+            padding: 0; /* Removed padding, rely on grid gap and internal margins */
             display: flex;
             flex-direction: column;
         }
@@ -344,7 +340,7 @@
     <div class="container">
         <!-- 1. 数据上传区 -->
         <div class="section" id="upload-section">
-            <h2>1. 上传成绩文件 (CSV格式)</h2>
+            <h2>上传成绩文件 (CSV格式)</h2>
             <input type="file" id="csvFile" accept=".csv">
             <p class="upload-hint">请上传CSV文件。文件应包含表头，例如："姓名", "科目1", "科目2", ... (第一行为表头，后续为学生数据)</p>
         </div>
@@ -352,8 +348,12 @@
         <div id="analysis-content-wrapper">
             <div class="columns-container">
                 <div class="left-column">
+                    <div class="section" id="preview-section">
+                        <h2>数据预览 (前10条)</h2>
+                        <div id="dataPreviewTableContainer"></div>
+                    </div>
                     <div class="section" id="settings-section">
-                        <h2>3. 分析设置</h2>
+                        <h2>分析设置</h2>
                         <div>
                             <label for="passScore">及格分数线:</label>
                             <input type="number" id="passScore" value="60" min="0" max="100">
@@ -363,14 +363,10 @@
                             <input type="number" id="excellentScore" value="85" min="0" max="100">
                         </div>
                     </div>
-                    <div class="section" id="preview-section">
-                        <h2>2. 数据预览 (前10条)</h2>
-                        <div id="dataPreviewTableContainer"></div>
-                    </div>
                 </div>
                 <div class="right-column">
                     <div class="section" id="visualization-section">
-                        <h2>5. 可视化图表</h2>
+                        <h2>可视化图表</h2>
                         <div>
                             <label for="chartTypeSelect">选择图表类型:</label>
                             <select id="chartTypeSelect">
@@ -386,7 +382,7 @@
             </div>
 
             <div class="section" id="results-section">
-                <h2>4. 分析结果</h2>
+                <h2>分析结果</h2>
                 <div id="statsSummaries">
                     <h3>统计概要</h3>
                     <!-- e.g. Total students, number of subjects -->
@@ -442,6 +438,7 @@
         const analysisChartCanvas = document.getElementById('analysisChart');
         const exportResultsBtn = document.getElementById('exportResultsBtn');
         const exportChartBtn = document.getElementById('exportChartBtn');
+        const statsSummariesDiv = document.getElementById('statsSummaries');
         let currentChartInstance = null;
 
         csvFileInput.addEventListener('change', (event) => {
@@ -553,6 +550,9 @@
             subjectStatsTableContainer.innerHTML = '';
             studentRankingsTableContainer.innerHTML = '';
             scoreDistributionTableContainer.innerHTML = '';
+            if (statsSummariesDiv) {
+                statsSummariesDiv.innerHTML = ''; // Clear stats summaries
+            }
         }
 
         // Core Analysis Functions (Step 2.2 & 3.1)
@@ -723,7 +723,9 @@
                 subjectColumns: subjectColumns,
                 students: studentData,
                 subjects: subjectStats,
-                scoreDistribution: scoreDistribution
+                scoreDistribution: scoreDistribution,
+                totalStudents: studentData.length,
+                totalSubjects: subjectColumns.length
             };
 
             console.log("[performAnalysis V7.1] Final analysisResults.scoreDistribution structure:", JSON.stringify(analysisResults.scoreDistribution));
@@ -731,6 +733,25 @@
         }
 
         // Functions to display results (Step 2.3)
+        function displayStatsSummaries(results) {
+            statsSummariesDiv.innerHTML = ''; // Clear previous
+
+            if (!results || !results.students || results.students.length === 0) {
+                statsSummariesDiv.innerHTML = '<p>无统计概要信息可显示。</p>';
+                return;
+            }
+
+            const totalStudents = results.totalStudents !== undefined ? results.totalStudents : results.students.length;
+            const totalSubjects = results.totalSubjects !== undefined ? results.totalSubjects : (results.subjectColumns ? results.subjectColumns.length : 0);
+
+            let summaryHtml = `
+                <p style="margin-bottom: 8px;"><strong>总学生人数:</strong> ${totalStudents}</p>
+                <p><strong>总科目数量:</strong> ${totalSubjects}</p>
+            `;
+            // Future: Add more summary info like top student, average pass rate etc.
+            statsSummariesDiv.innerHTML = summaryHtml;
+        }
+
         function displayResults() {
             clearResultDisplays();      // Clear tables
             populateChartTypeSelect();  // Always try to populate dropdown
@@ -741,10 +762,12 @@
                 subjectStatsTableContainer.innerHTML = '<p>没有科目统计数据可显示。</p>';
                 studentRankingsTableContainer.innerHTML = '<p>没有学生排名数据可显示。</p>';
                 scoreDistributionTableContainer.innerHTML = '<p>没有分数段分布数据可显示。</p>';
+                if (statsSummariesDiv) statsSummariesDiv.innerHTML = '<p>无统计概要信息可显示。</p>'; // Clear summary here too
                 return; 
             }
 
             // If we reach here, analysisResults is valid and has data for tables.
+            displayStatsSummaries(analysisResults); // Display general stats summaries
             displaySubjectStats(analysisResults);
             displayStudentRankings(analysisResults);
             displayScoreDistribution(analysisResults);
