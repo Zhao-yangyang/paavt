@@ -56,6 +56,7 @@
             border: 1px solid var(--border-color);
             border-radius: var(--border-radius-large);
             box-shadow: var(--box-shadow-light); /* Softened from --box-shadow-soft */
+            box-sizing: border-box; /* 确保padding不会增加元素总尺寸 */
         }
         h1, h2, h3, h4 {
             color: var(--text-color);
@@ -129,10 +130,13 @@
             background-color: #00227a; /* Darker Klein Blue */
         }
 
-        input[type="number"],
-        select {
+        input[type="number"] {
             width: 100%;
             max-width: 320px;
+        }
+        
+        select {
+            width: 100%;
         }
 
         input[type="number"]:focus,
@@ -148,6 +152,7 @@
             cursor: pointer;
             font-weight: 500;
             border: none;
+            box-sizing: border-box;
         }
         button:hover {
             background-color: #00227a; /* Darker Klein Blue */
@@ -155,6 +160,9 @@
         }
         #exportResultsBtn, #exportChartBtn {
             background-color: var(--text-color-secondary); /* Using secondary text color for export buttons */
+            padding: 8px 14px; /* 调整按钮内边距，使其高度与选择框匹配 */
+            font-size: 0.9em; /* 稍微减小字体大小 */
+            white-space: nowrap; /* 防止按钮文字换行 */
         }
         #exportResultsBtn:hover, #exportChartBtn:hover {
             background-color: #5a6268; /* Darker shade of secondary */
@@ -226,20 +234,24 @@
         }
         #chartContainer {
             width: 100%;
-            min-height: 500px; /* 调整高度使与左侧卡片一致 */
-            height: calc(100% - 100px); /* 减去标题和选择器的高度 */
+            flex: 1; /* 让图表容器自动占满剩余空间 */
             position: relative;
-            margin-top: 25px;
             border: 1px solid var(--border-color);
             border-radius: var(--border-radius-medium);
-            padding: 15px;
-            overflow: hidden;
+            padding: 15px 15px 25px 15px; /* 增加底部内边距 */
+            overflow: hidden; /* 确保内容不会溢出 */
             box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start; /* 让图表从顶部开始，避免过于靠近底部 */
+            min-height: 300px; /* 设置最小高度确保图表有足够空间 */
         }
         #analysisChart {
             display: block;
             box-sizing: border-box;
             max-width: 100%; /* Ensure canvas does not overflow its container */
+            max-height: 100%; /* 确保画布不会超出其容器的高度 */
+            margin-top: 10px; /* 添加顶部边距 */
         }
         .upload-hint {
             font-size: 0.9em;
@@ -247,8 +259,18 @@
             margin-top: -10px;
             margin-bottom: 20px;
         }
-        #settings-section div {
+        #settings-section {
+            height: 100%; /* 确保与可视化区域高度一致 */
+            display: flex;
+            flex-direction: column;
+            box-sizing: border-box;
+        }
+        #settings-section > div {
             margin-bottom: 20px;
+        }
+        #dataMetaInfo {
+            margin-top: auto !important; /* 将数据信息推到底部 */
+            padding-top: 20px;
         }
 
         /* New Layout Styles */
@@ -262,36 +284,44 @@
             display: flex;
             flex-direction: row;
             gap: 30px; /* Space between left and right columns */
-            align-items: flex-start; /* Align items to the top */
+            align-items: stretch; /* 确保子元素拉伸填满容器高度 */
+            height: auto; /* 允许内容撑开高度 */
+            min-height: 600px; /* 保持一个最小高度 */
         }
 
         .left-column {
             flex: 1; /* Takes 1 part of the space */
             display: flex;
             flex-direction: column;
-            gap: 30px; /* Space between sections in the left column */
+            /* height: 100%; */ /* Removed, as align-items: stretch on parent will handle height */
+            box-sizing: border-box;
         }
 
         .right-column {
             flex: 2; /* Takes 2 parts of the space, making it wider */
             display: flex;
             flex-direction: column;
-            gap: 30px; /* If multiple sections were here */
-            height: 100%; /* 确保占满高度 */
+            /* height: 100%; */ /* Removed, as align-items: stretch on parent will handle height */
+            box-sizing: border-box;
         }
         
         #visualization-section {
             height: 100%; /* 确保可视化区域占满右列高度 */
             display: flex;
             flex-direction: column;
+            box-sizing: border-box;
         }
 
-        /* Ensure sections take full width within their column parents */
+        /* Ensure sections take full width and height within their column parents */
         .left-column .section,
         .right-column .section {
             width: 100%;
+            height: 100%; /* 确保每个卡片占满整列高度 */
             box-sizing: border-box; /* Include padding and border in the element's total width and height */
             margin-bottom: 0; /* Remove bottom margin if gap is handled by flex parent */
+            display: flex;
+            flex-direction: column;
+            overflow: hidden; /* 防止内容溢出 */
         }
 
         /* Make data preview table scrollable */
@@ -347,7 +377,7 @@
     <div class="container">
         <!-- 1. 数据上传区 -->
         <div class="section" id="upload-section">
-            <h2>上传成绩文件 (CSV格式)</h2>
+            <h2>上传成绩文件</h2>
             <input type="file" id="csvFile" accept=".csv,.txt">
             <p class="upload-hint">请上传CSV或TXT文件。文件应包含表头，例如："姓名", "科目1", "科目2", ... (第一行为表头，后续为学生数据，TXT文件内容需为逗号分隔)</p>
         </div>
@@ -355,10 +385,6 @@
         <div id="analysis-content-wrapper">
             <div class="columns-container">
                 <div class="left-column">
-                    <div class="section" id="preview-section">
-                        <h2>数据预览 (前10条)</h2>
-                        <div id="dataPreviewTableContainer"></div>
-                    </div>
                     <div class="section" id="settings-section">
                         <h2>分析设置</h2>
                         <div>
@@ -369,21 +395,28 @@
                             <label for="excellentScore">优秀分数线:</label>
                             <input type="number" id="excellentScore" value="85" min="0" max="100">
                         </div>
+                        <div id="dataMetaInfo" style="color: var(--text-color-secondary);">
+                            <!-- 数据元信息将在这里显示 -->
+                        </div>
                     </div>
                 </div>
                 <div class="right-column">
                     <div class="section" id="visualization-section">
                         <h2>可视化图表</h2>
-                        <div>
-                            <label for="chartTypeSelect">选择图表类型:</label>
-                            <select id="chartTypeSelect">
-                                <!-- Options populated by JS -->
-                            </select>
+                        <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 15px;">
+                            <div style="flex: 1; max-width: 70%;">
+                                <label for="chartTypeSelect">选择图表类型:</label>
+                                <select id="chartTypeSelect" style="width: 100%;">
+                                    <!-- Options populated by JS -->
+                                </select>
+                            </div>
+                            <div style="margin-left: 15px; align-self: flex-end;">
+                                <button id="exportChartBtn">导出图表 (PNG)</button>
+                            </div>
                         </div>
-                        <div id="chartContainer">
+                        <div id="chartContainer"> 
                             <canvas id="analysisChart"></canvas>
                         </div>
-                        <button id="exportChartBtn" style="margin-top: 10px;">导出图表 (PNG)</button>
                     </div>
                 </div>
             </div>
@@ -431,8 +464,6 @@
         }
 
         const csvFileInput = document.getElementById('csvFile');
-        const dataPreviewTableContainer = document.getElementById('dataPreviewTableContainer');
-        const previewSection = document.getElementById('preview-section');
         const settingsSection = document.getElementById('settings-section');
         const resultsSection = document.getElementById('results-section');
         const visualizationSection = document.getElementById('visualization-section');
@@ -447,6 +478,8 @@
         const exportChartBtn = document.getElementById('exportChartBtn');
         const statsSummariesDiv = document.getElementById('statsSummaries');
         let currentChartInstance = null;
+
+
 
         csvFileInput.addEventListener('change', (event) => {
             const file = event.target.files[0];
@@ -475,10 +508,12 @@
                             clearResultDisplays(); // Clear results if file is removed
                             return;
                         }
-                        displayPreview(parsedData);
+                        displayDataMetaInfo(parsedData);
                         showSections();
                         performAnalysis(); // Trigger analysis after parsing
                         displayResults(); // Display the results after analysis
+                        // 清空文件输入框，确保同一个文件可以再次上传
+                        csvFileInput.value = '';
                     },
                     error: function(error, file) {
                         console.error("Error parsing CSV:", error, file);
@@ -487,6 +522,8 @@
                         parsedData = [];
                         hideSections();
                         clearResultDisplays(); // Clear results on error
+                        // 清空文件输入框，确保同一个文件可以再次上传
+                        csvFileInput.value = '';
                     }
                 });
             } else {
@@ -498,58 +535,36 @@
             }
         });
 
-        function displayPreview(data) {
-            dataPreviewTableContainer.innerHTML = ''; // Clear previous preview
+        function displayDataMetaInfo(data) {
+            const dataMetaInfo = document.getElementById('dataMetaInfo');
+            if (!dataMetaInfo) return;
+            
             if (!data || data.length === 0) {
-                dataPreviewTableContainer.innerHTML = '<p>没有数据可供预览。</p>';
+                dataMetaInfo.innerHTML = '<p>未检测到数据</p>';
                 return;
             }
 
-            const table = document.createElement('table');
-            table.style.width = '100%';
-            table.style.borderCollapse = 'collapse';
-
-            // Create header row
-            const header = table.createTHead();
-            const headerRow = header.insertRow();
             const headers = Object.keys(data[0]);
-            headers.forEach(text => {
-                const th = document.createElement('th');
-                th.textContent = text;
-                headerRow.appendChild(th);
-            });
-
-            // Create body rows (max 10 rows for preview)
-            const body = table.createTBody();
-            const previewRowCount = Math.min(data.length, 10);
-            for (let i = 0; i < previewRowCount; i++) {
-                const row = body.insertRow();
-                headers.forEach(headerText => {
-                    const cell = row.insertCell();
-                    cell.textContent = data[i][headerText] !== null && data[i][headerText] !== undefined ? data[i][headerText] : '';
-                });
-            }
-            dataPreviewTableContainer.appendChild(table);
+            const studentCount = data.length;
+            const subjectCount = getSubjectColumns(headers).length;
+            
+            dataMetaInfo.innerHTML = `
+                <h4 style="margin-bottom: 10px;">数据信息</h4>
+                <p>学生总数: <strong>${studentCount}</strong></p>
+                <p>科目总数: <strong>${subjectCount}</strong></p>
+                <p>科目: <strong>${getSubjectColumns(headers).join(', ')}</strong></p>
+            `;
         }
 
         function showSections() {
-            // previewSection.style.display = 'block';
-            // settingsSection.style.display = 'block';
-            // resultsSection.style.display = 'block';
-            // visualizationSection.style.display = 'block';
             document.getElementById('analysis-content-wrapper').style.display = 'flex'; // Use flex for column layout
             // Ensure individual sections are also visible if they were previously display:none
-            previewSection.style.display = 'block';
             settingsSection.style.display = 'block';
             resultsSection.style.display = 'block';
             visualizationSection.style.display = 'block';
         }
 
         function hideSections() {
-            // previewSection.style.display = 'none';
-            // settingsSection.style.display = 'none';
-            // resultsSection.style.display = 'none';
-            // visualizationSection.style.display = 'none';
             document.getElementById('analysis-content-wrapper').style.display = 'none';
         }
 
@@ -1096,7 +1111,8 @@
                     data: chartData,
                     options: {
                         responsive: true,
-                        maintainAspectRatio: false,
+                        maintainAspectRatio: true,
+                        aspectRatio: 1.6, // 调整宽高比，适应新的容器尺寸
                         plugins: {
                             title: {
                                 display: true,
@@ -1121,7 +1137,8 @@
                     data: chartData,
                     options: {
                         responsive: true,
-                        maintainAspectRatio: false,
+                        maintainAspectRatio: true, // 保持图表宽高比
+                        aspectRatio: 1.6, // 调整宽高比，适应新的容器尺寸
                         cutout: '50%', // Makes it a Donut chart
                         plugins: {
                             title: {
