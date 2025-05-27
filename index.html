@@ -226,14 +226,15 @@
         }
         #chartContainer {
             width: 100%;
-            min-height: 380px; /* Slightly increased min-height */
+            min-height: 500px; /* 调整高度使与左侧卡片一致 */
+            height: calc(100% - 100px); /* 减去标题和选择器的高度 */
             position: relative;
             margin-top: 25px;
             border: 1px solid var(--border-color);
             border-radius: var(--border-radius-medium);
-            padding: 15px; /* Reduced from 20px */
+            padding: 15px;
             overflow: hidden;
-            box-sizing: border-box; /* Ensure padding and border are included in the element's total width and height */
+            box-sizing: border-box;
         }
         #analysisChart {
             display: block;
@@ -276,6 +277,13 @@
             display: flex;
             flex-direction: column;
             gap: 30px; /* If multiple sections were here */
+            height: 100%; /* 确保占满高度 */
+        }
+        
+        #visualization-section {
+            height: 100%; /* 确保可视化区域占满右列高度 */
+            display: flex;
+            flex-direction: column;
         }
 
         /* Ensure sections take full width within their column parents */
@@ -398,7 +406,7 @@
                 <div id="scoreDistributionTableContainer">
                     <!-- JS will populate this with a grid of tables -->
                 </div>
-                <button id="exportResultsBtn" style="margin-top: 15px;">导出分析结果 (CSV)</button>
+                <button id="exportResultsBtn" style="margin-top: 15px;">导出分析结果图片</button>
             </div>
         </div>
 
@@ -1156,10 +1164,10 @@
             }
         }
 
-        // Add event listener for exporting results (Step 3.3)
+        // 修改导出结果按钮功能为导出分析结果图片
         exportResultsBtn.addEventListener('click', () => {
             if (parsedData.length > 0 && analysisResults && Object.keys(analysisResults).length > 0) {
-                exportResultsToCSV();
+                exportAnalysisResultsAsImage();
             } else {
                 alert("没有可导出的分析结果。请先上传并分析数据。");
             }
@@ -1270,6 +1278,33 @@
             }
         }
 
+        // 添加导出分析结果图片功能
+        function exportAnalysisResultsAsImage() {
+            // 获取要导出的结果区域
+            const resultsSection = document.getElementById('results-section');
+            
+            // 使用html2canvas库将DOM元素转换为图像
+            html2canvas(resultsSection).then(canvas => {
+                // 将画布转换为图像URL
+                const imgData = canvas.toDataURL('image/png');
+                
+                // 创建下载链接
+                const link = document.createElement('a');
+                link.download = '成绩分析结果.png';
+                link.href = imgData;
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }).catch(error => {
+                console.error('导出分析结果图片失败:', error);
+                alert('导出分析结果图片失败，请重试。');
+            });
+        }
+
     </script>
+
+    <!-- 添加html2canvas库用于将DOM转换为图像 -->
+    <script src="lib/html2canvas.min.js"></script>
 </body>
 </html> 
