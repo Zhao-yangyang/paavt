@@ -371,6 +371,59 @@
             font-size: 0.9em; /* Slightly smaller text in these tables */
         }
 
+        /* Custom File Upload Styles */
+        .custom-file-upload {
+            display: flex; /* Changed from inline-flex for full width */
+            align-items: center;
+            border: 1px solid var(--border-color);
+            padding: 0; /* Remove padding from container, apply to button/span if needed */
+            border-radius: var(--border-radius-medium);
+            background-color: #fff; /* Match other inputs */
+            width: 100%;
+            box-sizing: border-box;
+            position: relative; /* For absolute positioning of the native input */
+            overflow: hidden; /* Hide overflowing native input */
+        }
+
+        #csvFile { /* This is the native file input */
+            opacity: 0;
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer; 
+            z-index: 10; /* Ensure it's above the button/text for clicks */
+        }
+
+        #customFileButton {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 12px 18px; /* Match other buttons/inputs */
+            border: none;
+            border-radius: var(--border-radius-medium) 0 0 var(--border-radius-medium); /* Rounded left corners */
+            cursor: pointer;
+            font-size: 1em;
+            margin-bottom: 0; /* Override global button margin */
+            white-space: nowrap;
+            z-index: 1; /* Ensure it's below the native input overlay */
+        }
+        #customFileButton:hover {
+            background-color: #00227a; 
+        }
+
+        #customFileText {
+            padding: 12px 18px;
+            font-size: 1em;
+            color: var(--text-color-secondary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            flex-grow: 1; /* Take remaining space */
+            z-index: 1; /* Ensure it's below the native input overlay */
+            line-height: 1.6; /* Match input line-height */
+        }
+
     </style>
 </head>
 <body>
@@ -378,8 +431,12 @@
         <!-- 1. 数据上传区 -->
         <div class="section" id="upload-section">
             <h2>上传成绩文件</h2>
-            <input type="file" id="csvFile" accept=".csv,.txt">
-            <p class="upload-hint">请上传CSV或TXT文件。文件应包含表头，例如："姓名", "科目1", "科目2", ... (第一行为表头，后续为学生数据，TXT文件内容需为逗号分隔)</p>
+            <div class="custom-file-upload">
+                <input type="file" id="csvFile" accept=".csv,.txt">
+                <button type="button" id="customFileButton">选择文件</button>
+                <span id="customFileText">未选择文件</span>
+            </div>
+            <p class="upload-hint" style="margin-top: 15px;">请上传CSV或TXT文件。文件应包含表头，例如："姓名", "科目1", "科目2", ... (第一行为表头，后续为学生数据，TXT文件内容需为逗号分隔)</p>
         </div>
 
         <div id="analysis-content-wrapper">
@@ -464,6 +521,9 @@
         }
 
         const csvFileInput = document.getElementById('csvFile');
+        const customFileButton = document.getElementById('customFileButton');
+        const customFileText = document.getElementById('customFileText');
+        
         const settingsSection = document.getElementById('settings-section');
         const resultsSection = document.getElementById('results-section');
         const visualizationSection = document.getElementById('visualization-section');
@@ -479,59 +539,66 @@
         const statsSummariesDiv = document.getElementById('statsSummaries');
         let currentChartInstance = null;
 
+        // Click listener for the native file input (to ensure同名文件更新)
+        csvFileInput.addEventListener('click', function() {
+            this.value = null; // Clear value before selection to ensure change event fires for same file
+        });
 
+        // Link custom button to native file input
+        customFileButton.addEventListener('click', () => {
+            csvFileInput.click(); // Programmatically click the hidden native input
+        });
 
+        // Listener for when a new file is selected via the native input
         csvFileInput.addEventListener('change', (event) => {
             const file = event.target.files[0];
             if (file) {
+                customFileText.textContent = file.name; // Show selected file name immediately
+                // Proceed with parsing
                 Papa.parse(file, {
-                    header: true, // Assumes first row is header
+                    header: true, 
                     skipEmptyLines: true,
-                    dynamicTyping: true, // Automatically convert numbers and booleans
+                    dynamicTyping: true, 
                     complete: function(results) {
                         console.log("Parsing complete:", results);
                         if (results.errors.length > 0) {
                             console.error("Errors during parsing:", results.errors);
                             alert("文件解析时发生错误，请检查文件格式或内容。错误详情请查看控制台。");
-                            // Clear previous preview if any
-                            dataPreviewTableContainer.innerHTML = '<p style="color: red;">文件解析失败！</p>';
+                            customFileText.textContent = '解析失败: ' + file.name;
                             parsedData = [];
                             hideSections();
-                            clearResultDisplays(); // Clear results on error
+                            clearResultDisplays();
                             return;
                         }
                         parsedData = results.data;
                         if (parsedData.length === 0) {
                             alert("CSV文件为空或无法解析出有效数据。");
-                            dataPreviewTableContainer.innerHTML = '<p style="color: orange;">文件为空或无有效数据。</p>';
+                            customFileText.textContent = '文件无效: ' + file.name;
                             hideSections();
-                            clearResultDisplays(); // Clear results if file is removed
+                            clearResultDisplays();
                             return;
                         }
+                        customFileText.textContent = file.name + ' (加载成功)';
                         displayDataMetaInfo(parsedData);
                         showSections();
-                        performAnalysis(); // Trigger analysis after parsing
-                        displayResults(); // Display the results after analysis
-                        // 清空文件输入框，确保同一个文件可以再次上传
-                        csvFileInput.value = '';
+                        performAnalysis();
+                        displayResults();
                     },
                     error: function(error, file) {
                         console.error("Error parsing CSV:", error, file);
                         alert("无法解析CSV文件: " + error.message);
-                        dataPreviewTableContainer.innerHTML = '<p style="color: red;">文件解析失败！</p>';
+                        customFileText.textContent = '无法解析: ' + (file ? file.name : '未知文件');
                         parsedData = [];
                         hideSections();
-                        clearResultDisplays(); // Clear results on error
-                        // 清空文件输入框，确保同一个文件可以再次上传
-                        csvFileInput.value = '';
+                        clearResultDisplays();
                     }
                 });
             } else {
-                // No file selected, or selection cleared
-                dataPreviewTableContainer.innerHTML = '';
+                // No file selected, or selection cleared by user in dialog
+                customFileText.textContent = '未选择文件'; // Reset text if no file is chosen
                 parsedData = [];
                 hideSections();
-                clearResultDisplays(); // Clear results if file is removed
+                clearResultDisplays();
             }
         });
 
