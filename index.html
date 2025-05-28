@@ -532,7 +532,7 @@
         const chartTypeSelect = document.getElementById('chartTypeSelect');
         const analysisChartCanvas = document.getElementById('analysisChart');
         const exportResultsBtn = document.getElementById('exportResultsBtn');
-        const exportChartBtn = document.getElementById('exportChartBtn');
+        // const exportChartBtn = document.getElementById('exportChartBtn'); // Button removed
         const statsSummariesDiv = document.getElementById('statsSummaries');
         let currentChartInstance = null;
 
@@ -1326,9 +1326,9 @@
         }
 
         // Add event listener for exporting chart (Step 3.4)
-        exportChartBtn.addEventListener('click', () => {
-            exportChartToPNG();
-        });
+        // exportChartBtn.addEventListener('click', () => {
+        //     exportChartToPNG();
+        // });
 
         function exportChartToPNG() {
             if (currentChartInstance && analysisChartCanvas) {
